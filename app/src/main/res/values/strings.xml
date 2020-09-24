@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Apollo Test</string>
+    <string name="current_location">Current Location\nX: -\nY: -\nZ: -</string>
+</resources>
