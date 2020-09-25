@@ -3,9 +3,11 @@ package com.slamtec.simplecontrol.activities;
 import android.content.Context;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -39,6 +41,8 @@ public class BasicControlsActivity extends AppCompatActivity implements View.OnC
     private Context context;
     private Location location;
     private DataProcessor processor;
+    private static final String TAG = "control";
+    private ProgressBar progressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,51 +50,16 @@ public class BasicControlsActivity extends AppCompatActivity implements View.OnC
         setContentView(R.layout.activity_simple_controls);
 
         context = this;
+
+        progressBar = findViewById(R.id.progressBar);
+
+
         AppData data = new AppData(context);
         processor = new DataProcessor(context);
 
         String ip = data.getIpAddress();
 
-        /* 连接底盘 */
-        try {
-            robotPlatform = DeviceManager.connect(ip, PORT);
-        }catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(context, "Cannot Connect to robot. please check ip address and connect robot in same network", Toast.LENGTH_LONG).show();
-            return;
-        }
-
-        tvLocation = findViewById(R.id.tvLocation);
-        etName = findViewById(R.id.etName);
-
-        Button button_get_location = findViewById(R.id.button_get_location);
-        Button button_save_location = findViewById(R.id.button_save);
-
-
-        Button button_stop = findViewById(R.id.button_stop);
-        Button button_forward = findViewById(R.id.button_forward);
-        Button button_backward = findViewById(R.id.button_backward);
-        Button button_turn_left = findViewById(R.id.button_turn_left);
-        Button button_turn_right = findViewById(R.id.button_turn_right);
-
-        button_stop.setOnClickListener(this);
-        button_forward.setOnClickListener(this);
-        button_backward.setOnClickListener(this);
-        button_turn_left.setOnClickListener(this);
-        button_turn_right.setOnClickListener(this);
-        button_backward.setOnClickListener(this);
-        button_save_location.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                saveLocation();
-            }
-        });
-        button_get_location.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                showLocation();
-            }
-        });
+        connectRobot(ip);
 
     }
 
@@ -158,6 +127,79 @@ public class BasicControlsActivity extends AppCompatActivity implements View.OnC
         }
     }
 
+    private void connectRobot(final String ip) {
+        Log.e(TAG, "Connect on "+ip);
+        new Thread(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        /* 连接底盘 */
+                        try {
+                            robotPlatform = DeviceManager.connect(ip, PORT);
+                            Log.e(TAG,"Robot Connected");
+                            hideProgressBar(true);
+                            MyMessage.showData(BasicControlsActivity.this, "Robot Connected");
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            Log.e(TAG, "Cannot Connect to robot. please check ip address and connect robot in same network");
+                            MyMessage.showData(BasicControlsActivity.this, "Cannot Connect to robot. please check ip address and connect robot in same network");
+                            hideProgressBar(false);
+
+                        }
+                    }
+                }
+        ).start();
+    }
+
+    private void hideProgressBar(final Boolean isConnected){
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                progressBar.setVisibility(View.GONE);
+                if (!isConnected) {
+                    return;
+                }
+                init();
+            }
+        });
+    }
+
+    private void init() {
+
+        tvLocation = findViewById(R.id.tvLocation);
+        etName = findViewById(R.id.etName);
+
+        Button button_get_location = findViewById(R.id.button_get_location);
+        Button button_save_location = findViewById(R.id.button_save);
+
+
+        Button button_stop = findViewById(R.id.button_stop);
+        Button button_forward = findViewById(R.id.button_forward);
+        Button button_backward = findViewById(R.id.button_backward);
+        Button button_turn_left = findViewById(R.id.button_turn_left);
+        Button button_turn_right = findViewById(R.id.button_turn_right);
+
+        button_stop.setOnClickListener(this);
+        button_forward.setOnClickListener(this);
+        button_backward.setOnClickListener(this);
+        button_turn_left.setOnClickListener(this);
+        button_turn_right.setOnClickListener(this);
+        button_backward.setOnClickListener(this);
+        button_save_location.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                saveLocation();
+            }
+        });
+        button_get_location.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                showLocation();
+            }
+        });
+    }
+
     private void showLocation() {
         try {
             location = robotPlatform.getLocation();
@@ -184,5 +226,12 @@ public class BasicControlsActivity extends AppCompatActivity implements View.OnC
         String point = "Current Location\nX: -\nY: -\nZ:";
         tvLocation.setText(point);
         Toast.makeText(context, "Cannot get location", Toast.LENGTH_SHORT).show();
+    }
+    @Override
+    protected void onDestroy() {
+        if (robotPlatform != null) {
+            robotPlatform.disconnect();
+        }
+        super.onDestroy();
     }
 }

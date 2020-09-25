@@ -12,6 +12,7 @@ import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import com.slamtec.simplecontrol.PointsAdapter;
@@ -46,6 +47,7 @@ public class PointsActivity extends AppCompatActivity {
     private RecyclerView rvList;
     private IMoveAction moveAction;
     private AbstractSlamwarePlatform robotPlatform;
+    private ProgressBar progressBar;
 
     private final static String TAG = "Points";
 
@@ -74,52 +76,40 @@ public class PointsActivity extends AppCompatActivity {
 
         context = this;
 
+        progressBar = findViewById(R.id.progressBar);
+
         AppData data = new AppData(context);
-
         String ip = data.getIpAddress();
-
-        /* 连接底盘 */
-        try {
-            robotPlatform = DeviceManager.connect(ip, PORT);
-        } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(context, "Cannot Connect to robot. please check ip address and connect robot in same network", Toast.LENGTH_LONG).show();
-        }
-
-        processor = new DataProcessor(context);
-
-        rvList = findViewById(R.id.rvList);
-        rvList.setLayoutManager(new LinearLayoutManager(context));
-        rvList.addItemDecoration(new DividerItemDecoration(context, DividerItemDecoration.VERTICAL));
-
-        //processor.savePoint(new MapPoint("Test", 1,1,1,1));
-
-        Button btnStop = findViewById(R.id.btnStop);
-        btnStop.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (moveAction != null) {
-                    try {
-                        moveAction.cancel();
-                    } catch (RequestFailException e) {
-                        e.printStackTrace();
-                    } catch (ConnectionFailException e) {
-                        e.printStackTrace();
-                    } catch (ConnectionTimeOutException e) {
-                        e.printStackTrace();
-                    } catch (UnauthorizedRequestException e) {
-                        e.printStackTrace();
-                    } catch (UnsupportedCommandException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        });
+        connectRobot(ip);
 
 
-        showPointList();
 
     }
+
+    private void connectRobot(final String ip) {
+        Log.e(TAG, "Connect on "+ip);
+        new Thread(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        /* 连接底盘 */
+                        try {
+                            robotPlatform = DeviceManager.connect(ip, PORT);
+                            Log.e(TAG,"Robot Connected");
+                            MyMessage.showData(PointsActivity.this, "Robot Connected");
+                            hideProgressBar(true);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            Log.e(TAG, "Cannot Connect to robot. please check ip address and connect robot in same network");
+                            MyMessage.showData(PointsActivity.this, "Cannot Connect to robot. please check ip address and connect robot in same network");
+                            hideProgressBar(false);
+                        }
+                    }
+                }
+        ).start();
+    }
+
+
 
     private void showPointList() {
         ArrayList<MapPoint> list = processor.getSavedPoints();
@@ -190,5 +180,63 @@ public class PointsActivity extends AppCompatActivity {
         } catch (OperationFailException e) {
             e.printStackTrace();
         }
+    }
+
+    private void hideProgressBar(final Boolean isConnected){
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                progressBar.setVisibility(View.GONE);
+                if (!isConnected) {
+                    return;
+                }
+                init();
+            }
+        });
+    }
+
+    private void init() {
+        Button btnStop = findViewById(R.id.btnStop);
+        btnStop.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (moveAction != null) {
+                    try {
+                        moveAction.cancel();
+                    } catch (RequestFailException e) {
+                        e.printStackTrace();
+                    } catch (ConnectionFailException e) {
+                        e.printStackTrace();
+                    } catch (ConnectionTimeOutException e) {
+                        e.printStackTrace();
+                    } catch (UnauthorizedRequestException e) {
+                        e.printStackTrace();
+                    } catch (UnsupportedCommandException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
+
+        processor = new DataProcessor(context);
+
+
+        rvList = findViewById(R.id.rvList);
+        rvList.setLayoutManager(new LinearLayoutManager(context));
+        rvList.addItemDecoration(new DividerItemDecoration(context, DividerItemDecoration.VERTICAL));
+
+        //processor.savePoint(new MapPoint("Test", 1,1,1,1));
+
+        showPointList();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (robotPlatform != null) {
+            robotPlatform.disconnect();
+        }
+
+        super.onDestroy();
     }
 }

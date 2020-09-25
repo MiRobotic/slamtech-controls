@@ -4,7 +4,8 @@ import android.content.Context;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.widget.Toast;
+import android.view.View;
+import android.widget.ProgressBar;
 
 import com.slamtec.simplecontrol.config.AppData;
 import com.slamtec.simplecontrol.R;
@@ -31,31 +32,66 @@ import static com.slamtec.slamware.robot.ArtifactUsage.ArtifactUsageVirtualTrack
 public class GoToActivity extends AppCompatActivity {
 
     private AbstractSlamwarePlatform robotPlatform;
-    private IMoveAction moveAction;
 
     private final String TAG = "GoToAction";
+    private Context context;
+    private ProgressBar progressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_go_to_point);
 
-        final Context context = this;
+        context = this;
+        progressBar = findViewById(R.id.progressBar);
+
         AppData data = new AppData(context);
 
         String ip = data.getIpAddress();
 
-        /* 连接底盘 */
-        try {
-            robotPlatform = DeviceManager.connect(ip, PORT);
-        } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(context, "Cannot Connect to robot. please check ip address and connect robot in same network", Toast.LENGTH_LONG).show();
-            return;
-        }
+        connectRobot(ip);
 
+    }
 
+    private void connectRobot(final String ip) {
+        Log.e(TAG, "Connect on "+ip);
+        new Thread(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        /* 连接底盘 */
+                        try {
+                            robotPlatform = DeviceManager.connect(ip, PORT);
+                            Log.e(TAG,"Robot Connected");
+                            MyMessage.showData(GoToActivity.this, "Robot Connected");
+                            hideProgressBar(true);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            hideProgressBar(false);
+                            Log.e(TAG, "Cannot Connect to robot. please check ip address and connect robot in same network");
+                            MyMessage.showData(GoToActivity.this, "Cannot Connect to robot. please check ip address and connect robot in same network");
 
+                        }
+                    }
+                }
+        ).start();
+    }
+
+    private void hideProgressBar(final Boolean isConnected){
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                progressBar.setVisibility(View.GONE);
+                if (!isConnected) {
+                    return;
+                }
+                init();
+            }
+        });
+    }
+
+    private void init() {
 
         try {
             MoveOption moveOption = new MoveOption();
@@ -67,7 +103,7 @@ public class GoToActivity extends AppCompatActivity {
             Location location2 = new Location(1, 0, 0);
             Location location3 = new Location(0, 0, 0);
 
-            moveAction = robotPlatform.moveTo(location3, moveOption, 0);
+            IMoveAction moveAction = robotPlatform.moveTo(location3, moveOption, 0);
             moveAction.waitUntilDone();
 
             moveAction = robotPlatform.moveTo(location1, moveOption, 0);
@@ -107,5 +143,13 @@ public class GoToActivity extends AppCompatActivity {
         } catch (OperationFailException e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (robotPlatform != null) {
+            robotPlatform.disconnect();
+        }
+        super.onDestroy();
     }
 }
