@@ -3,6 +3,8 @@ package com.slamtec.simplecontrol.config;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import static com.slamtec.simplecontrol.config.Constants.ROBOT_IP;
+
 public class AppData {
 
     private SharedPreferences preferences;
@@ -12,7 +14,7 @@ public class AppData {
     }
 
     public String getIpAddress(){
-        return preferences.getString("ip", "192.168.11.1");
+        return preferences.getString("ip", ROBOT_IP);
     }
 
     public void setIpAddress(String ip) {
