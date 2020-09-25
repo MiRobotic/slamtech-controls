@@ -23,7 +23,7 @@
         android:theme="@style/AppTheme">
         <activity android:name=".activities.PointsActivity"/>
         <activity android:name=".activities.MenuActivity" />
-        <activity android:name=".activities.BasicControlsActivity">
+        <activity android:name=".activities.SplashActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -31,7 +31,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".activities.ConnectActivity" />
-        <activity android:name=".activities.SplashActivity" />
+        <activity android:name=".activities.BasicControlsActivity" />
     </application>
 
 </manifest>
